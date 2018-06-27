@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<service>
+  <short>kafka-zookeeper</short>
+  <description>kafka and zookeeper ports</description>
+  <port port="9092" protocol="tcp"/>
+  <port port="2181" protocol="tcp"/>
+  <port port="2888" protocol="tcp"/>
+  <port port="3888" protocol="tcp"/>
+</service>

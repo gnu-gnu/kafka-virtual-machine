@@ -12,9 +12,12 @@ Vagrant.configure("2") do |config|
     vm1.vm.network "forwarded_port", guest: 80, host: 8080
     # zookeeper identifier
     vm1.vm.provision "shell", inline: <<-SHELL
+    sudo su -
+    systemctl daemon-reload
     echo 1 > /data/zk/myid
-    chown -R vagrant:vagrant /data
-    nohup /usr/local/zookeeper/bin/zkServer.sh start&
+    systemctl start zookeeper-server.service
+    echo "broker.id=1" > /usr/local/kafka/config/server.properties
+    cat /tmp/server.properties >> /usr/local/kafka/config/server.properties
     SHELL
   end
   # Virtual machine 2
@@ -28,9 +31,12 @@ Vagrant.configure("2") do |config|
     vm2.vm.network "forwarded_port", guest: 80, host: 8080, disabled: true
     # zookeeper identifier
     vm2.vm.provision "shell", inline: <<-SHELL
+    sudo su -
+    systemctl daemon-reload
     echo 2 > /data/zk/myid
-    chown -R vagrant:vagrant /data
-    nohup /usr/local/zookeeper/bin/zkServer.sh start&
+    systemctl start zookeeper-server.service
+    echo "broker.id=2" > /usr/local/kafka/config/server.properties
+    cat /tmp/server.properties >> /usr/local/kafka/config/server.properties
     SHELL
   end
   # Virtual machine 3
@@ -44,9 +50,12 @@ Vagrant.configure("2") do |config|
     vm3.vm.network "forwarded_port", guest: 80, host: 8080, disabled: true
     # zookeeper identifier
     vm3.vm.provision "shell", inline: <<-SHELL
+    sudo su -
+    systemctl daemon-reload
     echo 3 > /data/zk/myid
-    chown -R vagrant:vagrant /data
-    nohup /usr/local/zookeeper/bin/zkServer.sh start&
+    systemctl start zookeeper-server.service
+    echo "broker.id=3" > /usr/local/kafka/config/server.properties
+    cat /tmp/server.properties >> /usr/local/kafka/config/server.properties
     SHELL
   end
   
@@ -65,6 +74,13 @@ Vagrant.configure("2") do |config|
   config.vm.provision "file", source: './provision', destination: "/tmp"
   # provisioning script
   config.vm.provision "shell", inline: <<-SHELL
+  sudo su -
+  cd /tmp
+  chown root:root zookeeper-3.4.12.tar.gz
+  chown root:root kafka_2.11-1.1.0.tgz
+  chown root:root kafka-zookeeper.xml
+  chown root:root kafka-server.service
+  chown root:root zookeeper-server.service
   yum -y install java-1.8.0-openjdk
   yum -y install net-tools
   yum -y install nc
@@ -75,17 +91,23 @@ Vagrant.configure("2") do |config|
   echo "192.168.33.13 vm3" >> /etc/hosts
   cd /usr/local
   tar zxf /tmp/zookeeper-3.4.12.tar.gz -C ./
+  tar zxf /tmp/kafka_2.11-1.1.0.tgz -C ./
   ln -s zookeeper-3.4.12 zookeeper
-  chown vagrant:vagrant zookeeper
+  ln -s kafka_2.11-1.1.0 kafka
   mkdir -p /data/zk
+  mkdir -p /data1
+  mkdir -p /data2
+  mkdir -p /data3
+  mkdir -p /data4
   mv -f /tmp/zoo.cfg /usr/local/zookeeper/conf/zoo.cfg
+  #firewall open
+  mv -f /tmp/kafka-zookeeper.xml /usr/lib/firewalld/services
+  ln -s /usr/lib/firewalld/services/kafka-zookeeper.xml /etc/firewalld/services/kafka-zookeeper.xml
   systemctl enable firewalld.service
   systemctl start firewalld.service
-  firewall-cmd --permanent --zone=public --add-source=192.168.33.0/24
-  firewall-cmd --permanent --zone=public --add-source=127.0.0.0/24
-  firewall-cmd --zone=public --add-port=2181/tcp
-  firewall-cmd --zone=public --add-port=2888/tcp
-  firewall-cmd --zone=public --add-port=3888/tcp
+  firewall-cmd --permanent --zone=public --add-service=kafka-zookeeper
   firewall-cmd --reload
+  mv -f /tmp/zookeeper-server.service /etc/systemd/system/zookeeper-server.service
+  mv -f /tmp/kafka-server.service /etc/systemd/system/kafka-server.service
  SHELL
 end
