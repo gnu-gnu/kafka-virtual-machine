@@ -15,8 +15,8 @@ Vagrant.configure("2") do |config|
     sudo su -
     systemctl daemon-reload
     echo 1 > /data/zk/myid
-    systemctl start zookeeper-server.service
     echo "broker.id=1" > /usr/local/kafka/config/server.properties
+    echo "advertised.listeners=PLAINTEXT://192.168.33.11:9092" >> /usr/local/kafka/config/server.properties
     cat /tmp/server.properties >> /usr/local/kafka/config/server.properties
     SHELL
   end
@@ -36,6 +36,7 @@ Vagrant.configure("2") do |config|
     echo 2 > /data/zk/myid
     systemctl start zookeeper-server.service
     echo "broker.id=2" > /usr/local/kafka/config/server.properties
+    echo "advertised.listeners=PLAINTEXT://192.168.33.12:9092" >> /usr/local/kafka/config/server.properties
     cat /tmp/server.properties >> /usr/local/kafka/config/server.properties
     SHELL
   end
@@ -55,7 +56,12 @@ Vagrant.configure("2") do |config|
     echo 3 > /data/zk/myid
     systemctl start zookeeper-server.service
     echo "broker.id=3" > /usr/local/kafka/config/server.properties
+    echo "advertised.listeners=PLAINTEXT://192.168.33.13:9092" >> /usr/local/kafka/config/server.properties
     cat /tmp/server.properties >> /usr/local/kafka/config/server.properties
+    # after all provision, start kafka daemon
+    ssh -o StrictHostKeyChecking=no -i /tmp/id_rsa root@vm1 "systemctl start kafka-server.service;/usr/local/kafka/bin/kafka-topics.sh --zookeeper vm1:2181,vm2:2181,vm3:2181/gnu-kafka --replication-factor 1 --partitions 1 --topic gnu-topic --create"
+    ssh -o StrictHostKeyChecking=no -i /tmp/id_rsa root@vm2 "systemctl start kafka-server.service"
+    ssh -o StrictHostKeyChecking=no -i /tmp/id_rsa root@vm3 "systemctl start kafka-server.service"
     SHELL
   end
   
@@ -75,6 +81,14 @@ Vagrant.configure("2") do |config|
   # provisioning script
   config.vm.provision "shell", inline: <<-SHELL
   sudo su -
+  # consumer alias
+  alias consumer="/usr/local/kafka/bin/kafka-console-consumer.sh --bootstrap-server vm:9092,vm2:9092,vm3:9092 --topic gnu-topic --from-beginning"
+  # root key setting
+  mkdir -p /root/.ssh
+  mv -f /tmp/id_rsa.pub /root/.ssh
+  cat /root/.ssh/id_rsa.pub > /root/.ssh/authorized_keys
+  chmod 600 -R /root/.ssh
+  # kafka and zookeeper install
   cd /tmp
   chown root:root zookeeper-3.4.12.tar.gz
   chown root:root kafka_2.11-1.1.0.tgz
@@ -84,6 +98,7 @@ Vagrant.configure("2") do |config|
   yum -y install java-1.8.0-openjdk
   yum -y install net-tools
   yum -y install nc
+  # vargrant key and host setting
   cat /tmp/public.key >> /home/vagrant/.ssh/authorized_keys
   echo "127.0.0.1 localhost" > /etc/hosts
   echo "192.168.33.11 vm1" >> /etc/hosts
@@ -94,6 +109,7 @@ Vagrant.configure("2") do |config|
   tar zxf /tmp/kafka_2.11-1.1.0.tgz -C ./
   ln -s zookeeper-3.4.12 zookeeper
   ln -s kafka_2.11-1.1.0 kafka
+  # zookeeper and kafka data dir
   mkdir -p /data/zk
   mkdir -p /data1
   mkdir -p /data2
@@ -107,6 +123,7 @@ Vagrant.configure("2") do |config|
   systemctl start firewalld.service
   firewall-cmd --permanent --zone=public --add-service=kafka-zookeeper
   firewall-cmd --reload
+  #daemon setting
   mv -f /tmp/zookeeper-server.service /etc/systemd/system/zookeeper-server.service
   mv -f /tmp/kafka-server.service /etc/systemd/system/kafka-server.service
  SHELL

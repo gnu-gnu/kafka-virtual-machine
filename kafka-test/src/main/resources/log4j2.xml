@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="INFO">
+	<Appenders>
+		<Console name="console" target="SYSTEM_OUT">
+			<PatternLayout
+				pattern="[%-5level] %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %c{1} - %msg%n" />
+		</Console>
+		<Kafka name="Kafka" topic="gnu-topic">
+			<PatternLayout pattern="%date %message" />
+			<Property name="bootstrap.servers">192.168.33.11:9092,192.168.33.12:9092,192.168.33.13:9092</Property>
+		</Kafka>
+	</Appenders>
+	<Loggers>
+		<Root level="info" additivity="false">
+			<AppenderRef ref="console" />
+			<AppenderRef ref="Kafka" />
+		</Root>
+	</Loggers>
+</Configuration>
